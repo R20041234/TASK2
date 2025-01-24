@@ -8,30 +8,50 @@ const showDoneBtn = document.getElementById("showDone");
 const showTodoBtn = document.getElementById("showTodo");
 const confirmationDialog = document.getElementById("confirmationDialog"); 
 
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadTasksFromLocalStorage();
+});
+
+
 addTaskBtn.addEventListener("click", () => {
   const taskText = taskInput.value.trim();
   if (taskText === "") return alert("Task cannot be empty!");
 
-   // Check if task is less than 5 characters
    if (taskText.length < 5) {
     showError("Task name must be at least 5 characters long!");
     return;
   }
+
+  if (/[\u0600-\u06FF]/.test(taskText)) {
+    showError("Task name cannot contain Arabic letters!");
+    return;
+  }
+
   const taskRow = createTaskRow(taskText);
   tasksContainer.appendChild(taskRow);
   taskInput.value = "";
-  updateNoTaskMessage();
+   saveTasksToLocalStorage();
+   updateNoTaskMessage();
+  errorMessage.style.display="none";
 });
 
-function createTaskRow(text) {
+function createTaskRow(text, isDone = false) {
   const taskRow = document.createElement("div");
   taskRow.classList.add("task-row");
+  if (isDone) taskRow.classList.add("done");
+
 
   const taskSpan = document.createElement("span");
   taskSpan.textContent = text;
+  if (isDone){
+    taskSpan.style.textDecoration ="line-through";
+    taskSpan.style.color = "red";
+  }
 
   const taskCheckbox = document.createElement("input");
   taskCheckbox.type = "checkbox";
+  taskCheckbox.checked = isDone;
   taskCheckbox.addEventListener("change", () => {
     if (taskCheckbox.checked) {
       taskSpan.style.textDecoration = "line-through";
@@ -54,6 +74,7 @@ function createTaskRow(text) {
         alert("Task name must be at least 5 characters long!");
       } 
       taskSpan.textContent = newName;
+      saveTasksToLocalStorage();
     } else {
       alert("Invalid task name!");
     }
@@ -65,6 +86,7 @@ function createTaskRow(text) {
   deleteBtn.addEventListener("click", () => {
     if (confirm("Are you sure you want to delete this task?")) {
       taskRow.remove();
+      saveTasksToLocalStorage();
       updateNoTaskMessage();
     }
   });
@@ -72,15 +94,36 @@ function createTaskRow(text) {
   taskRow.append(taskSpan, taskCheckbox, editBtn, deleteBtn);
   return taskRow;
 }
+function saveTasksToLocalStorage() {
+  const tasks = [];
+  const taskRows = document.querySelectorAll(".task-row");
+  taskRows.forEach(taskRow => {
+    const taskText = taskRow.querySelector("span").textContent;
+    const isDone = taskRow.classList.contains("done");
+    tasks.push({ text: taskText, done: isDone });
+  });
+  localStorage.setItem("tasks", JSON.stringify(tasks));
+}
+
+function loadTasksFromLocalStorage() {
+  const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+  tasks.forEach(task => {
+    const taskRow = createTaskRow(task.text, task.done);
+    tasksContainer.appendChild(taskRow);
+  });
+  updateNoTaskMessage();
+}
 
 deleteAllTasksBtn.addEventListener("click", () => {
   tasksContainer.innerHTML = "";
+  localStorage.removeItem("tasks");
   updateNoTaskMessage();
 });
 
 deleteDoneTasksBtn.addEventListener("click", () => {
   const doneTasks = document.querySelectorAll(".task-row.done");
   doneTasks.forEach(task => task.remove());
+  saveTasksToLocalStorage();
   updateNoTaskMessage();
 });
 
